@@ -411,19 +411,23 @@ JobHandle startMapReduceJob(const MapReduceClient &client,
 
 }
 //
-//void waitForJob(JobHandle job)
-//{
-//
-//    auto *jobN = static_cast<JobContext *> (job);
-//    for (int i = 0; i < jobN->multiThreadLevel; i++)
-//    {
-//
-//        int r = pthread_join(*jobN->threads[i], NULL);
-//        check(r);
-//
-//    }
-//
-//}
+void waitForJob(JobHandle job)
+{
+
+    auto jc = (JobContext *) job;
+    lock(&jc->mutex.wait_for_job_mutex);
+
+    if (!jc->already_waited) {
+        for (int i = 0; i < jc->multiThreadLevel; ++i) {
+            pthread_t tid = jc->threads[i];
+            int ret = pthread_join(tid, nullptr);
+            check(ret);
+        }
+        jc->already_waited = true;
+    }
+    unlock(&jc->mutex.wait_for_job_mutex);
+
+}
 //
 void getJobState(JobHandle job, JobState *state)
 {
